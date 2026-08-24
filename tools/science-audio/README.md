@@ -60,7 +60,9 @@ Veritasium|https://www.youtube.com/@veritasium/videos
 
 ```
 science-audio/
-├── download-all.sh       # 主入口
+├── download-all.sh       # 主入口：下载
+├── transcribe.sh         # 给下到的音频生成 SRT/VTT
+├── reorganize.sh         # 按分级整理目录、重建 archive
 ├── verify-sources.sh     # 检查源链接是否有效
 ├── lib.sh                # 配置加载、源列表解析、代理 / cookie 参数
 ├── config.env.example    # 配置模板（复制成 config.env 使用）
@@ -96,15 +98,9 @@ $OUTPUT_ROOT/
 
 `config.env` 里设 `GROUP_BY_LEVEL=1`，变成 `$OUTPUT_ROOT/<分级>/<源名>/`。
 
-**已经下过一轮再改这个开关，旧的 `downloaded.txt` 就对不上了，会把所有内容重下一遍。** 先把已有目录挪过去：
+**已经下过一轮再改这个开关，旧的 `downloaded.txt` 就对不上了，会把所有内容重下一遍。** 改完开关先跑一次 `./reorganize.sh --apply` 把已有目录挪到位，`downloaded.txt` 跟着目录一起走，不会重下。
 
-```bash
-cd "$OUTPUT_ROOT"
-# 按 sources/*.txt 里的分级手动归位，例如：
-mkdir -p kids middle ya adult
-mv SciShow_Kids Crash_Course_Kids NatGeo_Kids FreeSchool TheDadLab Steve_Spangler kids/
-mv TED_Ed NASA_STEM middle/
-```
+开关改回 0 也一样——`reorganize.sh` 两个方向都支持。
 
 ## 说明
 
@@ -120,6 +116,42 @@ mv TED_Ed NASA_STEM middle/
 
 `Wow in the World`、`Brains On`、`Tumble Science` 三个节目 YouTube 和 RSS 都有。默认走 RSS（更全、音质更好），`sources/youtube.txt` 里对应的行已注释掉。要反过来的话，把那几行取消注释，同时删掉 `sources/podcasts.txt` 里对应的三行——两边都留着会把同样的音频下两遍。
 
+## 生成字幕
+
+```bash
+./transcribe.sh                                   # 转写 $OUTPUT_ROOT 下全部音频
+./transcribe.sh ~/ScienceAudio/kids/SciShow_Kids  # 只转某个目录
+```
+
+SRT 和 VTT 跟音频同目录、同主文件名。引擎按 mlx-whisper → faster-whisper → openai-whisper 的顺序自动挑第一个装了的：
+
+```bash
+pip install mlx-whisper        # Apple Silicon 上最快
+pip install faster-whisper     # 跨平台，CPU 也能跑
+```
+
+相关配置：`PYTHON`（解释器）、`MODEL`（模型大小或本地路径）、`LANGUAGE`、`SKIP_EXISTING_SRT`、`KEEP_JSON`。
+
+已有非空 `.srt` 的文件会跳过，所以可以反复跑来补齐新下载的内容。有文件转写失败时退出码为 1。
+
+## 整理目录
+
+```bash
+./reorganize.sh                      # 只看计划，什么都不动（默认）
+./reorganize.sh --apply              # 确认后执行
+./reorganize.sh --apply --rebuild-archives
+```
+
+按 `sources/*.txt` 里登记的分级，把 `$OUTPUT_ROOT` 下的源目录挪到 `GROUP_BY_LEVEL` 指定的布局。整目录搬，`downloaded.txt` 跟着走，不会触发重下。
+
+- **默认 dry-run**，加 `--apply` 才真动
+- 源列表里没有的目录只报告，绝不移动
+- 目标已存在时跳过并报冲突，不合并也不覆盖
+- 除了 0 字节空文件，任何情况下都不删音频
+- `--rebuild-archives` 从文件名末尾 `[视频ID]` 还原 `downloaded.txt`，用于 archive 丢了的情况。抓不到 ID 的文件（比如播客）不会写进去
+- `--min-duration SEC` 列出超长文件，默认 2 小时，需要 `ffprobe`
+
 ## 依赖
 
-`bash` 4+、`yt-dlp`、`ffmpeg`
+`bash` 4+、`yt-dlp`、`ffmpeg`（`ffprobe` 随 ffmpeg 一起装）
+转写另需 `mlx-whisper` / `faster-whisper` / `openai-whisper` 三选一

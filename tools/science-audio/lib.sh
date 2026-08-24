@@ -30,9 +30,15 @@ trim_ws() {
   printf '%s' "$s"
 }
 
+# 已知分级，仅用于校验拼写；源文件里写别的词也能用，只是会提示一句
+KNOWN_LEVELS="kids middle ya adult unsorted"
+
 load_sources() {
-  # $1 = 文件路径 → 打印 name|url（跳过空行和注释）
-  local file="$1" line
+  # $1 = 文件路径
+  # 输出：每行 level<TAB>name<TAB>url
+  #   用 TAB 而不是 | 分隔，是因为 URL 里可能出现 |，但不会出现 TAB
+  #   格式不合法的行输出 __bad__<TAB>原始行<TAB>，交给调用方计数和报警
+  local file="$1" line level="unsorted" name url
   [[ -f "$file" ]] || { echo "缺少源文件: $file" >&2; return 1; }
   while IFS= read -r line || [[ -n "$line" ]]; do
     # 只把行首、或前面紧挨空白的 # 当注释起点，
@@ -44,9 +50,40 @@ load_sources() {
     fi
     line="$(trim_ws "$line")"
     [[ -z "$line" ]] && continue
-    [[ "$line" == *"|"* ]] || continue
-    printf '%s\n' "$line"
+
+    # [kids] 这样的段落头，往下的条目都归到这一级
+    if [[ "$line" =~ ^\[([A-Za-z0-9_-]+)\]$ ]]; then
+      level="$(printf '%s' "${BASH_REMATCH[1]}" | tr '[:upper:]' '[:lower:]')"
+      if [[ " $KNOWN_LEVELS " != *" $level "* ]]; then
+        echo "[提示] 源文件 $file 里有未知分级 [$level]，仍会照常处理" >&2
+      fi
+      continue
+    fi
+
+    if [[ "$line" != *"|"* ]]; then
+      printf '__bad__\t%s\t\n' "$line"
+      continue
+    fi
+    name="$(trim_ws "${line%%|*}")"
+    url="$(trim_ws "${line#*|}")"
+    if [[ -z "$name" || -z "$url" ]]; then
+      printf '__bad__\t%s\t\n' "$line"
+      continue
+    fi
+    printf '%s\t%s\t%s\n' "$level" "$name" "$url"
   done < "$file"
+}
+
+# 判断某个分级是否在 LEVEL_FILTER 里；LEVEL_FILTER 为空表示全要
+level_wanted() {
+  local want="$1" item
+  [[ -z "${LEVEL_FILTER:-}" ]] && return 0
+  local IFS=','
+  for item in $LEVEL_FILTER; do
+    item="$(trim_ws "$item")"
+    [[ "$item" == "$want" ]] && return 0
+  done
+  return 1
 }
 
 setup_proxy() {

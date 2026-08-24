@@ -1,31 +1,54 @@
 #!/usr/bin/env bash
 # download-all.sh — YouTube + Podcast 统一下载
 # 用法:
-#   ./download-all.sh              # 两者都下（看 config 开关）
+#   ./download-all.sh                      # 两者都下（看 config 开关）
 #   ./download-all.sh youtube
 #   ./download-all.sh podcast
-#   ./download-all.sh both
+#   ./download-all.sh both --level kids,middle
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib.sh"
 
-MODE="${1:-both}"   # youtube | podcast | both
+usage() {
+  cat <<'USAGE'
+用法: download-all.sh [youtube|podcast|both] [--level 分级[,分级...]]
 
-# 先校验参数，别等建完目录、连完代理才报用法错误
+  youtube | podcast | both   下载哪一类，默认 both
+  --level kids,middle        只下这些分级；不给就是全下
+                             可用分级: kids middle ya adult unsorted
+
+例:
+  ./download-all.sh                          # 全下
+  ./download-all.sh youtube --level kids     # 只下 YouTube 里的 kids
+  ./download-all.sh --level ya,adult         # 两类里的 ya + adult
+USAGE
+}
+
+MODE="both"
+LEVEL_FILTER=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    youtube|podcast|podcasts|both|all) MODE="$1"; shift ;;
+    --level)
+      [[ $# -ge 2 ]] || { echo "--level 后面要跟分级" >&2; exit 1; }
+      LEVEL_FILTER="$2"; shift 2 ;;
+    --level=*) LEVEL_FILTER="${1#*=}"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "未知参数: $1" >&2; echo >&2; usage >&2; exit 1 ;;
+  esac
+done
+
 run_youtube=0
 run_podcast=0
 case "$MODE" in
   youtube) run_youtube=1 ;;
   podcast|podcasts) run_podcast=1 ;;
-  both|all|"")
+  both|all)
     run_youtube=1
     run_podcast=1
-    ;;
-  *)
-    echo "用法: $0 [youtube|podcast|both]" >&2
-    exit 1
     ;;
 esac
 
@@ -43,13 +66,7 @@ setup_proxy
 TOTAL_SOURCES=0
 FAILED_SOURCES=0
 SKIPPED_ENTRIES=0
-
-trim() {
-  local s="$1"
-  s="${s#"${s%%[![:space:]]*}"}"
-  s="${s%"${s##*[![:space:]]}"}"
-  printf '%s' "$s"
-}
+FILTERED_OUT=0
 
 download_list() {
   local kind="$1"          # youtube | podcast
@@ -60,7 +77,7 @@ download_list() {
   echo ""
   echo "######## $kind ########"
   echo "sources: $list_file"
-  echo "max_items=$MAX_ITEMS_PER_SOURCE  duration<=${max_dur}s"
+  echo "max_items=$MAX_ITEMS_PER_SOURCE  duration<=${max_dur}s  level=${LEVEL_FILTER:-全部}"
 
   if [[ ! -f "$list_file" ]]; then
     echo "[skip] 无源文件: $list_file"
@@ -72,7 +89,7 @@ download_list() {
     setup_cookies
     # setup_cookies 靠动态作用域写上面这个 cookie_args
     if [[ ${#cookie_args[@]} -eq 0 ]]; then
-      echo "[cookies] ⚠️  setup_cookies 没有产生任何参数，受限内容可能下不到"
+      echo "[cookies] ⚠️  没有配置 cookie，年龄限制/会员内容会下不到"
     fi
   else
     echo "[cookies] skip ($kind)"
@@ -87,34 +104,40 @@ download_list() {
     return 0
   fi
 
-  local entry name url target archive
+  local entry level name url target archive
   for entry in "${entries[@]}"; do
-    entry="$(trim "$entry")"
-    [[ -n "$entry" ]] || continue
+    IFS=$'\t' read -r level name url <<< "$entry"
 
-    if [[ "$entry" != *"|"* ]]; then
-      echo "[skip] 缺少 | 分隔符，跳过: $entry"
+    if [[ "$level" == "__bad__" ]]; then
+      echo "[skip] 格式不合法（应为 名称|链接），跳过: $name"
       SKIPPED_ENTRIES=$((SKIPPED_ENTRIES + 1))
       continue
     fi
 
-    name="$(trim "${entry%%|*}")"
-    url="$(trim "${entry#*|}")"
+    if ! level_wanted "$level"; then
+      FILTERED_OUT=$((FILTERED_OUT + 1))
+      continue
+    fi
 
-    # name 会直接拼进路径，含 / 或是 . / .. 会建出意料之外的目录
-    if [[ -z "$name" || -z "$url" || "$name" == */* || "$name" == "." || "$name" == ".." ]]; then
-      echo "[skip] 名称或链接不合法，跳过: $entry"
+    # name / level 会直接拼进路径，含 / 或是 . / .. 会建出意料之外的目录
+    if [[ "$name" == */* || "$name" == "." || "$name" == ".." \
+       || "$level" == */* || "$level" == "." || "$level" == ".." ]]; then
+      echo "[skip] 名称或分级不合法，跳过: $level|$name"
       SKIPPED_ENTRIES=$((SKIPPED_ENTRIES + 1))
       continue
     fi
 
-    target="$OUTPUT_ROOT/$name"
+    if [[ "${GROUP_BY_LEVEL:-0}" == "1" ]]; then
+      target="$OUTPUT_ROOT/$level/$name"
+    else
+      target="$OUTPUT_ROOT/$name"
+    fi
     archive="$target/downloaded.txt"
     mkdir -p "$target"
     TOTAL_SOURCES=$((TOTAL_SOURCES + 1))
 
     echo ""
-    echo "========== $name =========="
+    echo "========== [$level] $name =========="
     echo "$url"
 
     local args=(
@@ -130,16 +153,11 @@ download_list() {
       "${proxy_args[@]}"
     )
 
+    # 直播回放/首播的 upload_date 可能为空，回落到 release_date，否则文件名会以 NA 开头
+    args+=(--output "$target/%(upload_date>%Y%m%d,release_date>%Y%m%d)s - %(title)s [%(id)s].%(ext)s")
+
     if [[ "$kind" == "youtube" ]]; then
-      # 直播回放/首播的 upload_date 可能为空，回落到 release_date，否则文件名会以 NA 开头
-      args+=(
-        --output "$target/%(upload_date>%Y%m%d,release_date>%Y%m%d)s - %(title)s [%(id)s].%(ext)s"
-        "${cookie_args[@]}"
-      )
-    else
-      args+=(
-        --output "$target/%(upload_date>%Y%m%d,release_date>%Y%m%d)s - %(title)s [%(id)s].%(ext)s"
-      )
+      args+=("${cookie_args[@]}")
     fi
 
     if [[ "${MAX_ITEMS_PER_SOURCE:-0}" -gt 0 ]]; then
@@ -163,7 +181,7 @@ download_list() {
 MAX_YT="${MAX_DURATION_SEC_YOUTUBE:-2700}"
 MAX_POD="${MAX_DURATION_SEC_PODCAST:-3600}"
 
-echo "[download-all] root=$OUTPUT_ROOT mode=$MODE yt=$run_youtube pod=$run_podcast"
+echo "[download-all] root=$OUTPUT_ROOT mode=$MODE yt=$run_youtube pod=$run_podcast group_by_level=${GROUP_BY_LEVEL:-0}"
 
 [[ "$run_youtube" == "1" ]] && \
   download_list "youtube" "$YOUTUBE_SOURCES" "$MAX_YT" 1
@@ -173,7 +191,7 @@ echo "[download-all] root=$OUTPUT_ROOT mode=$MODE yt=$run_youtube pod=$run_podca
 
 echo ""
 echo "下载完成 → $OUTPUT_ROOT"
-echo "源总数: $TOTAL_SOURCES  失败: $FAILED_SOURCES  跳过的坏条目: $SKIPPED_ENTRIES"
+echo "源总数: $TOTAL_SOURCES  失败: $FAILED_SOURCES  跳过的坏条目: $SKIPPED_ENTRIES  被分级过滤: $FILTERED_OUT"
 
 # 有失败就用非零退出码收场，定时任务才看得出来
 if [[ "$FAILED_SOURCES" -gt 0 || "$SKIPPED_ENTRIES" -gt 0 ]]; then

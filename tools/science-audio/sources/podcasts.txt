@@ -1,4 +1,32 @@
 # 格式: 目录名|RSS_URL
+# [xxx] 是分级段落头，用法同 youtube.txt
+#
+# 播客的 feed 地址换得比 YouTube 频道勤（换托管商就变），
+# 所以这里只放已经跑通的三条。想加新节目，去节目官网或 Apple Podcasts
+# 抓当前的 RSS 地址填进来，再跑 ./verify-sources.sh 确认。
+
+# ========== kids（约 5-8 岁）==========
+[kids]
 Wow_in_the_World_RSS|https://rss.art19.com/wow-in-the-world
 Brains_On_RSS|https://www.omnycontent.com/d/playlist/796469f9-ea34-46a2-8776-ad0f015d6beb/88254a5e-7dce-483b-9e89-b375010d435a/20172af1-ae6b-4b68-90d7-b375010d4361/podcast.rss
+
+# ========== middle（约 9-13 岁）==========
+[middle]
 Tumble_Science_RSS|https://feeds.megaphone.fm/ARML4771062206
+
+# ========== 候选节目（自己补 RSS 地址后取消注释）==========
+# 我不确定这些节目当前的 feed 地址，不想编一个假的进来，所以只列名字。
+#
+# kids:
+#   But Why: A Podcast for Curious Kids   (Vermont Public)
+#   Forever Ago                           (American Public Media)
+#   Smash Boom Best                       (American Public Media)
+# middle:
+#   Six Minutes                           (Gen-Z Media)
+#   Greeking Out                          (National Geographic Kids)
+# ya:
+#   Science Vs                            (Spotify)
+#   Short Wave                            (NPR)
+# adult:
+#   Radiolab                              (WNYC)
+#   Quirks and Quarks                     (CBC)

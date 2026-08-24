@@ -1,0 +1,4 @@
+# 格式: 目录名|RSS_URL
+Wow_in_the_World_RSS|https://rss.art19.com/wow-in-the-world
+Brains_On_RSS|https://www.omnycontent.com/d/playlist/796469f9-ea34-46a2-8776-ad0f015d6beb/88254a5e-7dce-483b-9e89-b375010d435a/20172af1-ae6b-4b68-90d7-b375010d4361/podcast.rss
+Tumble_Science_RSS|https://feeds.megaphone.fm/ARML4771062206

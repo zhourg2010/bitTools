@@ -1,0 +1,17 @@
+# 格式: 目录名|URL
+# 以 # 开头的行忽略
+SciShow_Kids|https://www.youtube.com/@SciShowKids/videos
+Crash_Course_Kids|https://www.youtube.com/@crashcoursekids/videos
+NatGeo_Kids|https://www.youtube.com/@NatGeoKids/videos
+FreeSchool|https://www.youtube.com/@FreeSchool/videos
+TheDadLab|https://www.youtube.com/@TheDadLab/videos
+Steve_Spangler|https://www.youtube.com/@SteveSpanglerScience/videos
+TED_Ed|https://www.youtube.com/@TEDEd/videos
+NASA_STEM|https://www.youtube.com/@NASAePDC/videos
+
+# 下面三个节目在 podcasts.txt 里已有 RSS 源，同样的音频会被下两遍。
+# RSS 版通常更全、音质更好，所以这里默认注释掉。要走 YouTube 就把这三行取消注释、
+# 同时删掉 podcasts.txt 里对应的三行。
+# Wow_in_the_World|https://www.youtube.com/@tinkercast/videos
+# Brains_On|https://www.youtube.com/@BrainsOnShow/videos
+# Tumble_Science|https://www.youtube.com/@Tumblepodcast/videos

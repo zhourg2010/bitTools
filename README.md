@@ -2,11 +2,12 @@
 
 个人工具集合仓库，存放平时自用的各类小工具和脚本。
 
-## 目录结构
+## 工具列表
 
-```
-tools/    # 各个工具，一个工具一个子目录
-```
+| 工具 | 说明 |
+| --- | --- |
+| [getpapers](tools/getpapers/) | 从 ERIC 批量检索并下载英语教育方向论文的全文 PDF |
+| [myzsh](tools/myzsh/) | WSL / Ubuntu 一键配置 Zsh 环境（Oh My Zsh、中文乱码、提示符） |
 
 ## 约定
 

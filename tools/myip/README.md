@@ -78,7 +78,33 @@ apt install mmdb-bin         # 提供 mmdblookup，只给国家和城市
 - 所有服务都失败时退出码为 1
 - 更新失败不影响查询，旧数据库原样保留
 
+## PowerShell 版
+
+`Get-PublicIP.ps1` 是同一套东西的 PowerShell 实现，给 Windows 用。放进 `$PROFILE`：
+
+```powershell
+. "$HOME\.bitTools\tools\myip\Get-PublicIP.ps1"
+```
+
+```powershell
+Get-PublicIP                 # 或用别名 myip
+(Get-PublicIP).IP            # 只取 IP
+Get-PublicIP | Format-List   # 看全部字段
+Get-PublicIP -NoUpdate       # 本次不检查更新
+Get-PublicIP -WaitUpdate     # 等更新跑完再返回
+```
+
+返回的是 PSCustomObject，字段：`IP` `Family` `Source` `Country` `CountryCode` `Region` `City` `Latitude` `Longitude` `TimeZone` `Database`。
+
+和 bash 版的差别：
+
+- **零外部依赖**。Windows 上没有 `mmdblookup`，也不该为一个 profile 函数去装 Python，所以 MMDB 解析是用纯 PowerShell 实现的（搜索树遍历 + 数据段解码）。
+- **更新完全不阻塞**。用 `Start-Job` 起后台作业，函数立刻返回；更新结果留到下次调用时报告，不会卡住提示符。bash 版是在脚本结尾等一下。
+- 环境变量同 bash 版，另加 `MYIP_DBIP_BASE`（换下载源 / 镜像）。数据库默认放 `%LOCALAPPDATA%\bitTools\myip`。
+
 ## 依赖
 
-`bash`、`curl`、`gzip`；MaxMind 模式另需 `tar`
+**bash 版**：`bash`、`curl`、`gzip`；MaxMind 模式另需 `tar`
 读取器：`maxminddb`（pip）或 `mmdblookup`（libmaxminddb）
+
+**PowerShell 版**：无外部依赖。PowerShell 7+ 已验证；Windows PowerShell 5.1 按兼容写法写的（未实测）

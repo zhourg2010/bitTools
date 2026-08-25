@@ -253,9 +253,12 @@ add_path_block() {
   [[ -f "$rc" ]] || return 0
   # 先删旧块再写，重复执行不叠加
   sed -i "/^${BEGIN_MARKER}\$/,/^${END_MARKER}\$/d" "$rc"
+  # 家目录下的路径写成 $HOME/... 形式，别把绝对路径焊死进 rc 文件
+  local path_literal="$BIN_DIR"
+  [[ "$BIN_DIR" == "$HOME/"* ]] && path_literal="\$HOME/${BIN_DIR#"$HOME"/}"
   {
     printf '%s\n' "$BEGIN_MARKER"
-    printf 'export PATH="%s:$PATH"\n' "$BIN_DIR"
+    printf 'export PATH="%s:$PATH"\n' "$path_literal"
     printf '%s\n' "$END_MARKER"
   } >> "$rc"
   say "已把 $BIN_DIR 写进 $rc"
@@ -285,9 +288,16 @@ echo "  命令:   $BIN_DIR/bt-*"
 echo "======================================"
 if [[ "$NEED_RELOAD" == "1" ]]; then
   echo ""
-  echo "$BIN_DIR 还不在当前 PATH 里，执行下面任一条:"
-  echo "  source ~/.bashrc      # 或重开终端"
+  echo "当前这个 shell 还看不到 bt-* 命令（子进程改不了父 shell 的 PATH）。"
+  echo "三选一："
+  echo "  1) source ~/.bashrc          # 当前终端立刻生效"
+  echo "  2) 重开一个终端                # 之后一直有效"
+  echo "  3) $BIN_DIR/bt-myip   # 用全路径，现在就能跑"
+  echo ""
+  echo "生效之后试试:"
+else
+  echo ""
+  echo "命令已就绪，直接试试:"
 fi
-echo ""
-echo "先试试:  bittools        # 看命令列表"
-echo "        bt-myip         # 查外网 IP"
+echo "  bittools        # 看命令列表"
+echo "  bt-myip         # 查外网 IP"

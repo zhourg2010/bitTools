@@ -17,7 +17,29 @@ git clone https://github.com/zhourg2010/bitTools.git
 cd bitTools && ./install.sh
 ```
 
-装完 `source ~/.bashrc`（或重开终端）就能用了。
+### 装完立刻能用吗
+
+**当前这个终端不行，需要 `source` 一下或重开。** 任何安装程序都改不了父 shell 的环境变量（子进程改不了父进程的 PATH），rustup、nvm、homebrew 都是这样。三条路任选：
+
+```bash
+source ~/.bashrc          # 当前终端立刻生效
+# 或者重开一个终端         # 之后一直有效
+~/.local/bin/bt-myip      # 用全路径，装完那一秒就能跑，不需要任何配置
+```
+
+之后 `bt-*` 就是普通命令，任何目录下直接敲。
+
+install.sh 会往 `~/.bashrc` 和 `~/.zshrc` 各写一个带标记的块：
+
+```bash
+# >>> bitTools >>>
+export PATH="$HOME/.local/bin:$PATH"
+# <<< bitTools <<<
+```
+
+只在 `~/.local/bin` 不在当前 PATH 时才写；重复安装只替换这一块，不会叠加，也不动你自己的配置。不想让它碰 shell 配置就加 `--no-path`。
+
+（Ubuntu 自带的 `~/.profile` 本来就有加 `~/.local/bin` 的逻辑，但前提是登录时该目录已存在。全新系统上它不存在会被跳过，所以这个块是必要的。）
 
 装了些什么：
 

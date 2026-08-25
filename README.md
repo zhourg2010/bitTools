@@ -9,6 +9,7 @@
 | [getpapers](tools/getpapers/) | 从 ERIC 批量检索并下载英语教育方向论文的全文 PDF |
 | [myzsh](tools/myzsh/) | WSL / Ubuntu 一键配置 Zsh 环境（Oh My Zsh、中文乱码、提示符） |
 | [science-audio](tools/science-audio/) | 批量抓取少儿科普 YouTube 频道和播客 RSS 的音频 |
+| [myip](tools/myip/) | 查外网 IP，用本地 GeoIP 库给出归属地，数据库后台自动更新 |
 
 ## 约定
 
